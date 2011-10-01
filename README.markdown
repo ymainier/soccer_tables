@@ -4,25 +4,25 @@ english championship
 # How to use it
 
 
-## Make the xml files available on the web or use the one on GitHub
+Make the xml files available on the web or use the one on GitHub
 
     https://raw.github.com/ymainier/soccer_tables/master/ranking.xml
     https://raw.github.com/ymainier/soccer_tables/master/fixture.xml
 
 
-## Use the YQL console to test 
+Use the YQL console to test 
 
 1. See how to retrieve the [Premier League ranking table][yql_console_ranking].
 2. See how to retrieve [all fixtures for Manchester United][yql_console_fixture]
 
 # How to customize requests
 
-## For ranking
+For ranking
 
 _Required_ `league` key, the value can be `'french'`, `'english'`,
 `'champions_league_group_a'` to `'champions_league_group_h'`
 
-## For Fixture
+For Fixture
 
 _Required_ `championship` key, the value can be either `'french'` or
 `'english'`
