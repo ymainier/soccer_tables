@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<table xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+  <meta>
+    <author>Yann Mainier</author>
+    <sampleQuery>select * from {table} where league="french" and team="Paris SG"</sampleQuery>
+  </meta>
+  <bindings>
+    <select itemPath="" produces="XML">
+      <inputs>
+        <key id='championship' type='xs:string' paramType='variable' required="true" />
+        <key id='team' type='xs:string' paramType='variable' required="true" />
+      </inputs>
+      <execute><![CDATA[
+var statement, team_url;
+
+if (championship !== 'french' && championship !== 'english') {
+  response.object = <error>Unknown championship</error>;
+} else {
+  domain = {
+    french:  'http://fr.sports.yahoo.com',
+    english: 'http://uk.eurosport.yahoo.com'
+  };
+
+  statement = {
+    french:  'select * from html where url="' + domain[championship] + '/football/ligue-1/equipes.html" and xpath="//*[contains(@class, \'teamlist\')]/div/ul/li"',
+    english: 'select * from html where url="' + domain[championship] + '/football/premier-league/teams.html" and xpath="//*[contains(@class, \'teamlist\')]/div/ul/li"',
+  };
+
+  monthToNumber = function (month) {
+    var matching = {
+      french:  {jan: 1, 'fév': 2, mar: 3, avr: 4, mai: 5, jun: 6, jul: 7, 'aoû': 8, sep: 9, oct: 10, nov: 11, 'déc': 12},
+      english: {jan: 1, 'feb': 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, 'aug': 8, sep: 9, oct: 10, nov: 11, 'dec': 12}
+    };
+    return matching[championship][month.toLowerCase()];
+  }
+
+  markup = y.query(statement[championship]);
+  teamList = {};
+  for each (li in markup.results.li) {
+    teamList[li.h3.a.text()] = li.ul.li[2].a.@href.text();
+  }
+
+  if (typeof teamList[team] === 'undefined') {
+    response.object = <error>Cannot find team "{team}" in {championship} championship.</error>;
+  } else {
+    markup = y.query('select * from html where url="' + domain[championship] + teamList[team] + '"  and xpath="//table[contains(@class, \'fixtures-result\')]/tr[contains(@class, \'result\') or contains(@class, \'fixture\')]"');
+    matches = <matches/>;
+    for each (tr in markup.results.tr) {
+      match = <match>
+        <date>{tr.td[0].*.text()}</date>
+        <team>
+          <home>{tr.td[1].a.span[0].text()}</home>
+          <away>{tr.td[1].a.span[2].text()}</away>
+        </team>
+      </match>;
+      if (tr['@class'].match(/result/)) {
+        score = tr.td[1].a.span[1].text().toString().match(/(\d+)\s*-\s*(\d+)(\s*\((\d+)\s*-\s*(\d+)\))?/);
+        match.score = <score><home>{score[1]}</home><away>{score[2]}</away></score>;
+        if (typeof score[4] !== 'undefined') { match.score.penalty_home = <penalty_home>{score[4]}</penalty_home>; }
+        if (typeof score[5] !== 'undefined') { match.score.penalty_away = <penalty_away>{score[5]}</penalty_away>; }
+      }
+
+      date = tr.td[0].*.text().match(/^(\d+)\s+(.+),\s+(\d+):(\d+)$/)
+      if (date && date[3] && date[4]) {
+        match.date = <date>
+          <day>{date[1]}</day>
+          <month>{monthToNumber(date[2])}</month>
+          <hour>{date[3]}</hour>
+          <minute>{date[4]}</minute>
+        </date>;
+      } else {
+        date = tr.td[0].*.text().match(/^(\d+)\s+([^,]+),?$/)
+        match.date = <date>
+          <day>{date[1]}</day>
+          <month>{monthToNumber(date[2])}</month>
+        </date>;
+      }
+      matches.match += match;
+    }
+    response.object = matches;
+  }
+}
+      ]]></execute>
+    </select>
+  </bindings>
+</table>
+

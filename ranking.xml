@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<table xmlns="http://query.yahooapis.com/v1/schema/table.xsd">
+  <meta>
+    <author>Yann Mainier</author>
+    <sampleQuery>select * from {table} where league="french"</sampleQuery>
+  </meta>
+  <bindings>
+    <select itemPath="" produces="XML">
+      <inputs>
+        <key id='league' type='xs:string' paramType='variable' required="true" />
+      </inputs>
+      <execute><![CDATA[
+var content, ranking, rankingItem, statement;
+
+if (league !== 'french' && league !== 'english' && !league.match('^champions_league_group_[a-h]$')) {
+  response.object = <error>Unknown league : {league}</error>;
+} else {
+  statement = {
+    french: 'select * from html where url="http://fr.sports.yahoo.com/football/ligue-1/classement.html" and xpath=\'//table[@summary="Classement"]/tbody/tr\'',
+    english: 'select * from html where url="http://uk.eurosport.yahoo.com/football/premier-league/table.html" and xpath=\'//table[@summary="Full Table"]/tbody/tr\''
+  };
+  getItem = {
+    french: {
+      name:         function (root) { return root.th.*.text(); },
+      rank:         function (root) { return root.td[0].*.text(); },
+      points:       function (root) { return root.td[1].*.text(); },
+      played:       function (root) { return root.td[2].*.text(); },
+      win:          function (root) { return root.td[3].*.text(); },
+      draw:         function (root) { return root.td[4].*.text(); },
+      defeat:       function (root) { return root.td[5].*.text(); },
+      goal_for:     function (root) { return root.td[6].*.text(); },
+      goal_against: function (root) { return root.td[7].*.text(); }
+    },
+    english: {
+      name:         function (root) { return root.th.*.text(); },
+      rank:         function (root) { return root.td[0].*.text(); },
+      points:       function (root) { return root.td[8].*.text(); },
+      played:       function (root) { return root.td[1].*.text(); },
+      win:          function (root) { return root.td[2].*.text(); },
+      draw:         function (root) { return root.td[3].*.text(); },
+      defeat:       function (root) { return root.td[4].*.text(); },
+      goal_for:     function (root) { return root.td[5].*.text(); },
+      goal_against: function (root) { return root.td[6].*.text(); }
+    }
+  };
+
+  group = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+  for (i = 0; i < 8; i++) {
+    statement['champions_league_group_' + group[i]] = 'select * from html where url="http://fr.sports.yahoo.com/football/ligue-des-champions/groupe-' + group[i] + '/classement.html" and xpath=\'//table[@summary="Classement"]/tbody/tr\'';
+    getItem['champions_league_group_' + group[i]]   = getItem.french;
+  }
+
+  content = y.query(statement[league]);
+  ranking = <ranking/>;
+
+  for each (tr in content.results.tr) {
+    rankingItem = <team>
+      <name>{getItem[league].name(tr)}</name>
+      <rank>{getItem[league].rank(tr)}</rank>
+      <points>{getItem[league].points(tr)}</points>
+      <played>{getItem[league].played(tr)}</played>
+      <win>{getItem[league].win(tr)}</win>
+      <draw>{getItem[league].draw(tr)}</draw>
+      <defeat>{getItem[league].defeat(tr)}</defeat>
+      <goal_for>{getItem[league].goal_for(tr)}</goal_for>
+      <goal_against>{getItem[league].goal_against(tr)}</goal_against>
+    </team>;
+    
+    ranking.rankingItem += rankingItem;
+  }
+
+  response.object = ranking;
+}
+      ]]></execute>
+    </select>
+  </bindings>
+</table>
+
